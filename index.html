@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>DINO: Wild Island — Safari</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07120d;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff}
+#game{width:100%;height:100%;display:block;touch-action:none}
+#hud{position:fixed;inset:0;pointer-events:none}
+.panel{background:rgba(6,13,11,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:0 8px 30px #0005}
+#stats{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;padding:10px 12px;width:205px}
+.bar{height:8px;border-radius:9px;background:#222;margin:5px 0 3px;overflow:hidden}.bar i{display:block;height:100%;border-radius:9px}
+.hp i{background:#d94c45}.xp i{background:#e0b83d}
+.small{font-size:11px;color:#b9c5bf}.big{font-size:15px;font-weight:800}
+#quest{position:absolute;top:max(12px,env(safe-area-inset-top));left:230px;padding:10px 13px;max-width:270px}
+#quest b{font-size:12px}.q{font-size:12px;color:#d7dfdb;margin-top:5px}
+#minimap{position:absolute;right:12px;top:max(12px,env(safe-area-inset-top));width:125px;height:125px;border-radius:50%;overflow:hidden;border:2px solid #ffffff33;background:#153d28}
+#mm{width:100%;height:100%}
+#controls{position:absolute;inset:0}
+#joy{position:absolute;left:20px;bottom:max(20px,env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;background:#ffffff12;border:1px solid #ffffff24;pointer-events:auto}
+#knob{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:#ffffff30;border:1px solid #ffffff38}
+.action{position:absolute;width:62px;height:62px;border-radius:50%;border:1px solid #ffffff2d;background:#0c1914cc;color:white;font-weight:800;pointer-events:auto}
+#attack{right:22px;bottom:max(25px,env(safe-area-inset-bottom));background:#7e2c25dd}
+#dash{right:95px;bottom:max(95px,calc(env(safe-area-inset-bottom) + 70px))}
+#med{right:20px;bottom:max(108px,calc(env(safe-area-inset-bottom) + 80px))}
+#hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:11px;color:#d7e0db;background:#0007;padding:6px 10px;border-radius:20px}
+#toast{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-weight:800;font-size:20px;text-shadow:0 3px 12px #000;opacity:0;transition:.2s}
+#cross{position:absolute;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);opacity:.5}
+#cross:before,#cross:after{content:"";position:absolute;background:#fff}.crossx{}
+#cross:before{width:2px;height:20px;left:9px}.cross:after{height:2px;width:20px;top:9px}
+#desktop{display:none}
+#levelup{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,82vw);padding:18px;z-index:10;text-align:center}
+#levelup.show{display:block}
+.luTitle{font-size:20px;font-weight:900}.luSub{font-size:12px;color:#b8c5bf;margin:5px 0 12px}
+#levelup button{display:block;width:100%;margin:7px 0;padding:12px;border-radius:12px;border:1px solid #ffffff20;background:#13231bcc;color:#fff;text-align:left;font-weight:800}
+#levelup button small{display:block;color:#9eaca6;font-weight:500;margin-top:2px}
+@media(min-width:800px){#desktop{display:block;position:absolute;right:155px;bottom:20px;font-size:12px;color:#bfc9c4}.action,#joy{opacity:.72}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div id="stats" class="panel">
+    <div class="big">ВЫЖИВШИЙ <span id="lvl">1</span></div>
+    <div class="small">Здоровье <span id="hpText">100/100</span></div><div class="bar hp"><i id="hp"></i></div>
+    <div class="small">Опыт <span id="xpText">0/100</span></div><div class="bar xp"><i id="xp"></i></div>
+    <div class="small">⚙ Энергия <span id="energy">100</span> · 🔩 <span id="ore">0</span></div>
+  </div>
+  <div id="quest" class="panel"><b>ЗАДАНИЕ</b><div class="q">◈ Добраться до радиовышки</div><div class="q">◈ Собрать железо: <span id="oreQ">0/5</span></div></div>
+  <div id="minimap"><canvas id="mm"></canvas></div>
+  <div id="cross"></div>
+  <div id="toast"></div>
+  <div id="controls">
+    <div id="joy"><div id="knob"></div></div>
+    <button class="action" id="attack">АТАКА</button>
+    <button class="action" id="dash">РЫВОК</button>
+    <button class="action" id="med">💊</button>
+  </div>
+  <div id="hint">Ищи ресурсы • избегай крупных хищников</div>
+  <div id="desktop">WASD / стрелки · Space атака · Shift рывок</div>
+  <div id="levelup" class="panel">
+    <div class="luTitle">НОВЫЙ УРОВЕНЬ <span id="newLevel">2</span></div>
+    <div class="luSub">Выбери улучшение</div>
+    <button data-up="damage">🔫 УРОН <small>+15% к атаке</small></button>
+    <button data-up="hp">❤️ ЖИВУЧЕСТЬ <small>+40 к максимуму HP</small></button>
+    <button data-up="speed">🏃 СКОРОСТЬ <small>+12% к движению</small></button>
+    <button data-up="energy">⚡ ВЫНОСЛИВОСТЬ <small>+25 энергии</small></button>
+  </div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+"use strict";
+
+/*
+ DINO: Wild Island — Safari v2
+ Engine: Babylon.js
+ Design target: iPhone Safari, low draw-call scene, instanced foliage,
+ limited active AI, hardware scaling, no physics engine.
+ Asset direction: CC0/PD low-poly packs from Kenney + Quaternius/Poly Pizza.
+ This build keeps the scene self-contained so it opens immediately in Safari.
+*/
+
+const canvas=document.getElementById("game");
+const engine=new BABYLON.Engine(canvas,true,{preserveDrawingBuffer:false,stencil:false,antialias:true},true);
+engine.setHardwareScalingLevel(Math.min(1.55,Math.max(1,window.devicePixelRatio/1.25)));
+
+const scene=new BABYLON.Scene(engine);
+scene.clearColor=new BABYLON.Color4(.025,.07,.045,1);
+scene.fogMode=BABYLON.Scene.FOGMODE_EXP2; scene.fogDensity=.0055; scene.fogColor=new BABYLON.Color3(.055,.12,.085);
+scene.imageProcessingConfiguration.contrast=1.12;
+scene.imageProcessingConfiguration.exposure=1.08;
+scene.shadowsEnabled=true;
+scene.skipPointerMovePicking=true;
+
+const camera=new BABYLON.FreeCamera("cam",new BABYLON.Vector3(0,22,-18),scene);
+camera.mode=BABYLON.Camera.ORTHOGRAPHIC_CAMERA;
+camera.rotation=new BABYLON.Vector3(BABYLON.Tools.ToRadians(62),0,0);
+camera.orthoTop=18; camera.orthoBottom=-18; camera.orthoLeft=-24; camera.orthoRight=24;
+camera.minZ=.1; camera.maxZ=250;
+
+const hemi=new BABYLON.HemisphericLight("sky",new BABYLON.Vector3(0,1,0),scene); hemi.intensity=.72;
+const sun=new BABYLON.DirectionalLight("sun",new BABYLON.Vector3(-.45,-1,.35),scene); sun.position=new BABYLON.Vector3(35,65,-30); sun.intensity=1.55;
+const shadow=sun.getShadowGenerator?.(2048); if(shadow){shadow.useBlurExponentialShadowMap=true;shadow.blurKernel=18;shadow.bias=.002;}
+
+const mat=(name,color,rough=.9)=>{
+  const m=new BABYLON.StandardMaterial(name,scene); m.diffuseColor=BABYLON.Color3.FromHexString(color); m.specularColor=BABYLON.Color3.Black(); m.roughness=rough; return m;
+};
+const groundMat=mat("island","#426f45"), sandMat=mat("sand","#bca66c"), rockMat=mat("rock","#555b50");
+const trunkMat=mat("trunk","#51402d"), leafMat=mat("leaf","#2e6a3d"), leaf2=mat("leaf2","#3d8446");
+const waterMat=mat("water","#2d7e86",.5); waterMat.alpha=.72;
+const redMat=mat("raptor","#8d4631"), rexMat=mat("rex","#5b6040"), herbMat=mat("herb","#657d4d");
+const playerMat=mat("survivor","#c18b54"), darkMat=mat("gear","#27302c"), ironMat=mat("iron","#7a7770");
+
+function box(name,w,h,d,material){let m=BABYLON.MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.material=material;return m}
+function cyl(name,r,h,material,segments=8){let m=BABYLON.MeshBuilder.CreateCylinder(name,{diameter:2*r,height:h,tessellation:segments},scene);m.material=material;return m}
+function sphere(name,diam,material){let m=BABYLON.MeshBuilder.CreateSphere(name,{diameter:diam,segments:8},scene);m.material=material;return m}
+
+const islandSize=180;
+const grassTex=new BABYLON.DynamicTexture("grassTex",{width:512,height:512},scene,false);
+const gc=grassTex.getContext(),gd=gc.createImageData(512,512);
+for(let i=0;i<gd.data.length;i+=4){const n=118+Math.floor(Math.random()*35);gd.data[i]=Math.floor(n*.45);gd.data[i+1]=Math.floor(n*1.15);gd.data[i+2]=Math.floor(n*.52);gd.data[i+3]=255}
+gc.putImageData(gd,0,0); grassTex.update();
+groundMat.diffuseTexture=grassTex; groundMat.diffuseTexture.uScale=18; groundMat.diffuseTexture.vScale=18; groundMat.specularColor=BABYLON.Color3.Black();
+const ground=BABYLON.MeshBuilder.CreateGround("island",{width:islandSize,height:islandSize,subdivisions:40},scene); ground.material=groundMat;
+const pos=ground.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+for(let i=0;i<pos.length;i+=3){
+  const x=pos[i],z=pos[i+2];
+  pos[i+1]=Math.sin(x*.075)*.55+Math.cos(z*.062)*.45+Math.sin((x+z)*.027)*.7;
+}
+ground.updateVerticesData(BABYLON.VertexBuffer.PositionKind,pos);
+
+const water=BABYLON.MeshBuilder.CreateGround("lagoon",{width:205,height:205},scene); water.position.y=-.65; water.material=waterMat;
+const river=BABYLON.MeshBuilder.CreateGround("river",{width:11,height:155,subdivisions:8},scene); river.position.set(-27,-.48,0); river.rotation.y=.28; river.material=waterMat;
+
+function makeTree(x,z,s=1){
+  const root=new BABYLON.TransformNode("tree",scene); root.position.set(x,.05,z); root.scaling.setAll(s);
+  const t=cyl("t",.24,3.6,trunkMat,7); t.parent=root; t.position.y=1.8;
+  for(let j=0;j<3;j++){const a=sphere("canopy",1.65-j*.16,j===2?leaf2:leafMat);a.parent=root;a.position.set((j-1)*.72,3.15+j*.38,(j%2)*.55-.25)}
+  root.getChildMeshes().forEach(m=>{m.receiveShadows=true;if(shadow)shadow.addShadowCaster(m)});
+  root.freezeWorldMatrix(); return root;
+}
+for(let i=0;i<105;i++){
+  const a=Math.random()*Math.PI*2, r=16+Math.random()*70;
+  makeTree(Math.cos(a)*r,Math.sin(a)*r,.72+Math.random()*.62);
+}
+for(let i=0;i<90;i++){
+  const x=(Math.random()-.5)*150,z=(Math.random()-.5)*150;
+  const g=cyl("fern",.12,.55,leaf2,5);g.position.set(x,.28,z);g.scaling.x=1.8+Math.random()*1.8;g.scaling.z=.5+Math.random();g.rotation.y=Math.random()*Math.PI;g.freezeWorldMatrix();
+}
+for(let i=0;i<70;i++){
+  const a=Math.random()*Math.PI*2,r=12+Math.random()*72;
+  const rock=BABYLON.MeshBuilder.CreateIcoSphere("rock",{radius:.7+Math.random()*1.5,subdivisions:1},scene);
+  rock.position.set(Math.cos(a)*r,.5,Math.sin(a)*r); rock.scaling.y=.55; rock.material=rockMat;
+  rock.freezeWorldMatrix();
+}
+
+function makeDino(kind){
+  const root=new BABYLON.TransformNode(kind,scene);
+  const bodyMat=kind==="rex"?rexMat:kind==="raptor"?redMat:herbMat;
+  const scale=kind==="rex"?1.65:kind==="raptor"?.85:1.15;
+  const body=sphere("body",2,bodyMat); body.parent=root; body.scaling.set(1.5,.72,.7); body.position.y=1.35;
+  const neck=cyl("neck",.42,1.45,bodyMat,7); neck.parent=root; neck.position.set(0,2.0,.62); neck.rotation.x=-.35;
+  const head=sphere("head",1.05,bodyMat); head.parent=root; head.position.set(0,2.55,1.22);
+  const snout=box("snout",.72,.42,1.05,bodyMat);snout.parent=root;snout.position.set(0,2.42,1.73);
+  const tail=box("tail",.48,.48,2.8,bodyMat);tail.parent=root;tail.position.set(0,1.35,-1.95);tail.rotation.x=.08;
+  for(const sx of [-.55,.55]){
+    const leg=cyl("leg",.19,.95,bodyMat,7);leg.parent=root;leg.position.set(sx,0.55,.45);
+    const leg2=cyl("leg",.19,.95,bodyMat,7);leg2.parent=root;leg2.position.set(sx,0.55,-.55);
+  }
+  root.scaling.setAll(scale);
+  const hpBack=box("hpBack",1.7,.07,.08,darkMat); hpBack.parent=root; hpBack.position.y=3.25; hpBack.position.z=.05;
+  const hpFill=box("hpFill",1.62,.055,.09,redMat); hpFill.parent=root; hpFill.position.set(0,3.25,.01);
+  root.metadata={bar:hpFill,barBack:hpBack,baseScale:scale};
+  root.getChildMeshes().forEach(m=>{m.receiveShadows=true;if(shadow)shadow.addShadowCaster(m)});
+  return root;
+}
+function makePlayer(){
+ const root=new BABYLON.TransformNode("player",scene);
+ const body=box("body",.75,1.15,.5,playerMat);body.parent=root;body.position.y=.85;
+ const head=sphere("head",.55,playerMat);head.parent=root;head.position.y=1.65;
+ const gun=box("rifle",.12,.12,1.0,darkMat);gun.parent=root;gun.position.set(.48,1.1,.5);gun.rotation.x=.1;
+ return root;
+}
+const player=makePlayer(); player.position.set(0,0,0);
+
+const dinos=[];
+const species=["raptor","raptor","raptor","herb","herb","herb","rex"];
+for(let i=0;i<14;i++){
+ const kind=species[Math.floor(Math.random()*species.length)],d=makeDino(kind);
+ const a=Math.random()*Math.PI*2,r=12+Math.random()*55;
+ d.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
+ d.rotation.y=Math.random()*Math.PI*2;
+ const stats=kind==="rex"?{hp:650,xp:220,damage:30,speed:1.55,range:22}:{hp:kind==="raptor"?130:190,xp:55,damage:10,speed:kind==="raptor"?2.8:1.0,range:17};
+ d.metadata={kind,maxHp:stats.hp,hp:stats.hp,xp:stats.xp,damage:stats.damage,speed:stats.speed,range:stats.range,hit:0,phase:Math.random()*10};
+ dinos.push(d);
+}
+
+const resources=[];
+for(let i=0;i<18;i++){
+ const o=cyl("ore",.35,.5,ironMat,6);o.position.set((Math.random()-.5)*140,.4,(Math.random()-.5)*140);o.metadata={taken:false};resources.push(o);
+}
+
+const tower=box("radioTower",1.1,7,1.1,darkMat);tower.position.set(52,3.5,50);
+const beacon=sphere("beacon",1.1,redMat);beacon.position.set(52,7.2,50);
+
+const input={x:0,y:0,keys:{}};
+window.addEventListener("keydown",e=>{input.keys[e.code]=true;if(e.code==="Space")attack();if(e.code==="ShiftLeft")dash();});
+window.addEventListener("keyup",e=>input.keys[e.code]=false);
+
+const joy=document.getElementById("joy"),knob=document.getElementById("knob");
+let joyId=null,joyRect=null;
+function joyMove(e){
+ const r=joyRect||joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+ let dx=e.clientX-cx,dy=e.clientY-cy; const max=40,len=Math.hypot(dx,dy);if(len>max){dx=dx/len*max;dy=dy/len*max}
+ input.x=dx/max;input.y=-dy/max;knob.style.transform=`translate(${dx}px,${dy}px)`;
+}
+joy.addEventListener("pointerdown",e=>{joyId=e.pointerId;joyRect=joy.getBoundingClientRect();joy.setPointerCapture(e.pointerId);joyMove(e)});
+joy.addEventListener("pointermove",e=>{if(e.pointerId===joyId)joyMove(e)});
+joy.addEventListener("pointerup",e=>{if(e.pointerId===joyId){joyId=null;input.x=input.y=0;knob.style.transform=""}});
+joy.addEventListener("pointercancel",()=>{joyId=null;input.x=input.y=0;knob.style.transform=""});
+
+let hp=100,maxHp=100,xp=0,level=1,energy=100,maxEnergy=100,ore=0,attackCD=0,dashCD=0,medCD=0;
+let damage=35,moveSpeed=8,levelChoiceOpen=false;
+function toast(t){const el=document.getElementById("toast");el.textContent=t;el.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.opacity=0,1200)}
+function nearestDino(){
+ let best=null,bd=7;
+ for(const d of dinos){if(!d.isEnabled())continue;const dist=BABYLON.Vector3.Distance(player.position,d.position);if(dist<bd){bd=dist;best=d}}
+ return best;
+}
+function attack(){
+ if(attackCD>0||levelChoiceOpen)return; attackCD=.52;
+ const d=nearestDino(); if(!d){toast("Нет цели в радиусе");return}
+ d.metadata.hp=Math.max(0,d.metadata.hp-damage); d.metadata.hit=.18;
+ if(d.metadata.bar){
+   d.metadata.bar.scaling.x=Math.max(.02,d.metadata.hp/d.metadata.maxHp);
+   d.metadata.bar.position.x=-.81+(d.metadata.hp/d.metadata.maxHp)*.81;
+ }
+ if(d.metadata.hp<=0){d.setEnabled(false);xp+=d.metadata.xp;toast("Добыча +"+d.metadata.xp+" XP")}
+ else toast("-"+damage+" HP");
+}
+function dash(){
+ if(dashCD>0||energy<25||levelChoiceOpen)return;dashCD=.9;energy-=25;
+ const dir=new BABYLON.Vector3(input.x,0,input.y);if(dir.lengthSquared()<.1)dir.z=1;
+ dir.normalize();player.position.addInPlace(dir.scale(6));
+}
+function heal(){if(medCD>0||hp>=maxHp||levelChoiceOpen)return;medCD=2;hp=Math.min(maxHp,hp+35);toast("+35 HP")}
+document.getElementById("attack").addEventListener("pointerdown",attack);
+document.getElementById("dash").addEventListener("pointerdown",dash);
+document.getElementById("med").addEventListener("pointerdown",heal);
+
+function updatePlayer(dt){
+ if(levelChoiceOpen)return;
+ let x=input.x,y=input.y;
+ if(input.keys.KeyA||input.keys.ArrowLeft)x-=1;if(input.keys.KeyD||input.keys.ArrowRight)x+=1;
+ if(input.keys.KeyW||input.keys.ArrowUp)y+=1;if(input.keys.KeyS||input.keys.ArrowDown)y-=1;
+ const v=new BABYLON.Vector3(x,0,y);if(v.lengthSquared()>1)v.normalize();
+ player.position.x+=v.x*moveSpeed*dt;player.position.z+=v.z*moveSpeed*dt;
+ player.position.x=BABYLON.Scalar.Clamp(player.position.x,-82,82);player.position.z=BABYLON.Scalar.Clamp(player.position.z,-82,82);
+ if(v.lengthSquared()>.02)player.rotation.y=Math.atan2(v.x,v.z);
+ energy=Math.min(maxEnergy,energy+18*dt);
+ camera.position.x=player.position.x; camera.position.z=player.position.z-18; camera.position.y=22;
+ camera.setTarget(new BABYLON.Vector3(player.position.x,0,player.position.z));
+}
+function updateDinos(dt,t){
+ for(const d of dinos){
+   if(!d.isEnabled())continue;
+   const dist=BABYLON.Vector3.Distance(player.position,d.position);
+   if(d.metadata.hit>0){d.metadata.hit-=dt;d.scaling.y=1.15}else d.scaling.y=1;
+   if(dist<d.metadata.range && (d.metadata.kind==="raptor"||d.metadata.kind==="rex")){
+      const dir=player.position.subtract(d.position);dir.y=0;
+      if(dir.lengthSquared()>1){dir.normalize();d.position.addInPlace(dir.scale(d.metadata.speed*dt));d.rotation.y=Math.atan2(dir.x,dir.z)}
+      if(dist<1.9){hp-=d.metadata.damage*dt}
+   }else{
+      d.metadata.phase+=dt;
+      d.position.x+=Math.sin(d.metadata.phase*.7)*.018;
+      d.position.z+=Math.cos(d.metadata.phase*.55)*.018;
+   }
+ }
+}
+function updateResources(){
+ for(const o of resources){
+   if(o.metadata.taken)continue;
+   if(BABYLON.Vector3.Distance(player.position,o.position)<1.8){o.metadata.taken=true;o.setEnabled(false);ore++;xp+=8;toast("Железо +1")}
+ }
+}
+function showLevelUp(){
+ levelChoiceOpen=true;
+ document.getElementById("newLevel").textContent=level+1;
+ document.getElementById("levelup").classList.add("show");
+}
+function takeUpgrade(type){
+ if(type==="damage"){damage=Math.round(damage*1.15);toast("Урон улучшен")}
+ if(type==="hp"){maxHp+=40;hp=maxHp;toast("Живучесть улучшена")}
+ if(type==="speed"){moveSpeed*=1.12;toast("Скорость улучшена")}
+ if(type==="energy"){maxEnergy+=25;energy=maxEnergy;toast("Выносливость улучшена")}
+ level++; levelChoiceOpen=false; document.getElementById("levelup").classList.remove("show");
+}
+document.querySelectorAll("#levelup button").forEach(b=>b.addEventListener("pointerdown",()=>takeUpgrade(b.dataset.up)));
+
+function updateUI(){
+ document.getElementById("hpText").textContent=Math.max(0,Math.round(hp))+"/"+maxHp;
+ document.getElementById("hp").style.width=Math.max(0,hp/maxHp*100)+"%";
+ const prev=level>1?(level-1)*100:0,need=level*100,progress=Math.max(0,xp-prev),span=Math.max(1,need-prev);
+ document.getElementById("xpText").textContent=progress+"/"+span;document.getElementById("xp").style.width=Math.min(100,progress/span*100)+"%";
+ document.getElementById("lvl").textContent=level;document.getElementById("energy").textContent=Math.round(energy)+"/"+maxEnergy;
+ document.getElementById("ore").textContent=ore;document.getElementById("oreQ").textContent=Math.min(5,ore)+"/5";
+ if(!levelChoiceOpen && xp>=level*100)showLevelUp();
+ if(hp<=0){hp=maxHp;player.position.set(0,0,0);toast("Ты потерял сознание")}
+}
+const mm=document.getElementById("mm"),mx=mm.getContext("2d");
+function drawMini(){
+ const w=mm.width=250,h=mm.height=250;mx.clearRect(0,0,w,h);mx.fillStyle="#1c5a38";mx.fillRect(0,0,w,h);
+ mx.fillStyle="#31757b";mx.fillRect(8,8,w-16,h-16);
+ mx.fillStyle="#416f45";mx.beginPath();mx.arc(w/2,h/2,103,0,Math.PI*2);mx.fill();
+ for(const d of dinos){if(!d.isEnabled())continue;let x=125+d.position.x/180*220,y=125+d.position.z/180*220;mx.fillStyle=d.metadata.kind==="rex"?"#ff5b4e":"#e8a548";mx.fillRect(x-2,y-2,4,4)}
+ mx.fillStyle="#fff";let px=125+player.position.x/180*220,py=125+player.position.z/180*220;mx.beginPath();mx.arc(px,py,5,0,7);mx.fill();
+}
+let last=performance.now(),t=0;
+engine.runRenderLoop(()=>{
+ const now=performance.now(),dt=Math.min(.033,(now-last)/1000);last=now;t+=dt;
+ updatePlayer(dt);updateDinos(dt,t);updateResources();
+ attackCD=Math.max(0,attackCD-dt);dashCD=Math.max(0,dashCD-dt);medCD=Math.max(0,medCD-dt);
+ updateUI();if(Math.floor(t*4)%4===0)drawMini();
+ scene.render();
+});
+window.addEventListener("resize",()=>engine.resize());
+</script>
+</body>
+</html>
