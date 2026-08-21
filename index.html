@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>DINO: Wild Island — v10</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#06100b;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+button{font:inherit;color:#fff}
+.hud{position:fixed;inset:0;pointer-events:none}
+.panel{background:rgba(4,12,8,.80);border:1px solid rgba(255,255,255,.14);border-radius:16px;backdrop-filter:blur(8px);box-shadow:0 10px 40px #0008}
+.stats{position:absolute;top:max(10px,env(safe-area-inset-top));left:12px;width:235px;padding:11px}
+.title{font-size:18px;font-weight:900}.small{font-size:11px;color:#b8c6bf}
+.bar{height:7px;background:#18211d;border-radius:8px;overflow:hidden;margin:4px 0 5px}.bar i{display:block;height:100%;width:100%}
+.hp i{background:#d84e48}.xp i{background:#e1bb43}.en i{background:#62a8e9}
+.questBtn{position:absolute;left:12px;top:calc(max(10px,env(safe-area-inset-top)) + 118px);width:48px;height:48px;border-radius:14px;border:1px solid #ffffff28;background:#0b1912dd;font-size:22px;pointer-events:auto;box-shadow:0 8px 25px #0006}
+.questBadge{position:absolute;right:-4px;top:-4px;min-width:17px;height:17px;padding:1px 4px;border-radius:10px;background:#d94c45;font-size:10px;font-weight:900}.hidden{display:none!important}
+.questModal{position:fixed;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;background:#0008;padding:20px;pointer-events:auto}.questCard{width:min(390px,90vw);max-height:75vh;overflow:auto;padding:18px;border-radius:18px;background:rgba(5,14,9,.96);border:1px solid #ffffff20;box-shadow:0 20px 70px #000b}.questHead{display:flex;align-items:center;justify-content:space-between;font-size:20px;font-weight:900;margin-bottom:12px}.questClose{width:38px;height:38px;border:0;border-radius:10px;background:#ffffff12;font-size:22px}.q{font-size:12px;color:#d6dfda;margin-top:8px;padding:10px;border-radius:10px;background:#ffffff08}.q.active{border-left:3px solid #e0b83d}.questDone{color:#8fe09b}
+.map{position:absolute;right:12px;top:max(10px,env(safe-area-inset-top));width:125px;height:125px;border-radius:50%;overflow:hidden;border:2px solid #ffffff44;background:#183c27}.map canvas{width:100%;height:100%}
+.action{position:absolute;pointer-events:auto;width:68px;height:68px;border-radius:50%;background:#102019cc;border:1px solid #ffffff35;font-weight:900}.attack{right:18px;bottom:max(24px,calc(env(safe-area-inset-bottom) + 8px));background:#803328dd}.dash{right:98px;bottom:max(100px,calc(env(safe-area-inset-bottom) + 80px))}.med{right:20px;bottom:max(108px,calc(env(safe-area-inset-bottom) + 88px))}
+.hint{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#0009;padding:7px 12px;border-radius:20px;font-size:11px;white-space:nowrap}
+.overlay{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:0 0 max(30px,env(safe-area-inset-bottom));background:rgba(2,8,5,.48);z-index:50}.card{width:min(730px,92vw);padding:24px 26px;border-radius:20px;background:rgba(5,14,9,.94);border:1px solid #ffffff20;box-shadow:0 20px 80px #000b}.card h1{margin:0 0 14px;text-align:center;font-size:28px}.card p{line-height:1.45;color:#d7dfda}.start{display:block;width:100%;padding:16px;border:0;border-radius:14px;background:#477b51;font-weight:900;font-size:18px;margin-top:18px;pointer-events:auto}.start:active{transform:scale(.99)}
+.level{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:#0008}.level .card{width:min(360px,88vw)}.up{display:block;width:100%;margin:8px 0;padding:13px;border-radius:12px;border:1px solid #ffffff18;background:#12241acc;text-align:left;font-weight:800}.up small{display:block;color:#aab7b0;font-weight:500;margin-top:3px}.toast{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:20px;font-weight:900;text-shadow:0 3px 15px #000;opacity:0;transition:.18s;z-index:80;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud">
+  <div class="stats panel">
+    <div class="title">ВЫЖИВШИЙ <span id="lvl">1</span></div>
+    <div class="small">Здоровье <span id="hpT">100/100</span></div><div class="bar hp"><i id="hp"></i></div>
+    <div class="small">Опыт <span id="xpT">0/100</span></div><div class="bar xp"><i id="xp"></i></div>
+    <div class="small">⚙ Энергия <span id="enT">100/100</span> · 🔩 <span id="oreT">0</span></div><div class="bar en"><i id="en"></i></div>
+  </div>
+  <button class="questBtn" id="questBtn" aria-label="Квесты">📜<span class="questBadge hidden" id="questBadge">!</span></button>
+  <div class="map"><canvas id="mini"></canvas></div>
+  <button class="action attack" id="attack">АТАКА</button><button class="action dash" id="dash">РЫВОК</button><button class="action med" id="med">💊</button>
+  <div class="hint">Левая половина — движение · Исследуй остров и ищи здания</div>
+</div>
+
+<div class="questModal hidden" id="questModal"><div class="questCard"><div class="questHead"><span>КВЕСТЫ</span><button class="questClose" id="questClose">✕</button></div><div id="quest"></div></div></div>
+
+<div class="overlay" id="intro"><div class="card"><h1>🦖 DINO: WILD ISLAND</h1><p><b>Глава I — Остров.</b></p><p>После крушения ты оказался на закрытом острове. Радиосигнал ведёт к старой вышке, а следы проекта «Гелиос» разбросаны по всей территории.</p><p>Не все существа будут нападать первыми. Исследуй остров, ищи здания и ресурсы, следи за стаями и не задерживайся рядом с крупными хищниками.</p><button class="start" id="start">НАЧАТЬ</button></div></div>
+
+<div class="level hidden" id="level"><div class="card"><h2 style="margin-top:0">НОВЫЙ УРОВЕНЬ <span id="nl">2</span></h2><p style="color:#b8c5bf">Выбери улучшение</p><button class="up" data-u="damage">🔫 УРОН<small>+15% к атаке</small></button><button class="up" data-u="hp">❤️ ЖИВУЧЕСТЬ<small>+40 к максимуму HP</small></button><button class="up" data-u="speed">🏃 СКОРОСТЬ<small>+12% к движению</small></button><button class="up" data-u="energy">⚡ ВЫНОСЛИВОСТЬ<small>+25 энергии</small></button></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const mini=document.getElementById('mini'),mx=mini.getContext('2d');
+let W=innerWidth,H=innerHeight,started=false,last=0,time=0,flash=0;
+function resize(){W=innerWidth;H=innerHeight;c.width=Math.max(1,Math.floor(W*devicePixelRatio));c.height=Math.max(1,Math.floor(H*devicePixelRatio));ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}
+resize();addEventListener('resize',resize);
+mini.width=250;mini.height=250;
+const world={w:2600,h:2600};
+const p={x:1300,y:1300,r:15,hp:100,maxHp:100,xp:0,lvl:1,en:100,maxEn:100,dmg:35,speed:260,atk:0,dash:0,med:0,ore:0};
+const keys={};addEventListener('keydown',e=>{keys[e.code]=1;if(e.code==='Space')attack();if(e.code==='ShiftLeft')dash()});addEventListener('keyup',e=>keys[e.code]=0);
+let touchId=null,tx=0,ty=0;const input={x:0,y:0};
+c.addEventListener('touchstart',e=>{for(const t of e.changedTouches)if(t.clientX<W*.55&&touchId===null){touchId=t.identifier;tx=t.clientX;ty=t.clientY;}},{passive:false});
+c.addEventListener('touchmove',e=>{if(touchId===null)return;const t=[...e.touches].find(x=>x.identifier===touchId);if(!t)return;const dx=t.clientX-tx,dy=t.clientY-ty,m=90,len=Math.hypot(dx,dy);input.x=Math.max(-1,Math.min(1,dx/m));input.y=Math.max(-1,Math.min(1,dy/m));if(len>m){tx=t.clientX-dx/len*m;ty=t.clientY-dy/len*m}e.preventDefault();},{passive:false});
+c.addEventListener('touchend',e=>{if([...e.changedTouches].some(t=>t.identifier===touchId)){touchId=null;input.x=input.y=0}},{passive:false});
+function btn(id,fn){document.getElementById(id).addEventListener('pointerup',e=>{e.preventDefault();fn()});}
+btn('attack',attack);btn('dash',dash);btn('med',heal);
+let seed=98231;function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+
+/* Buildings are reserved zones. Vegetation is never generated inside them. */
+const tower={x:2100,y:2050,r:115,found:false};
+const camp={x:620,y:650,r:135,found:false};
+const lab={x:430,y:2150,w:300,h:220,r:210,found:false};
+const buildings=[tower,camp,lab];
+function inBuildingClear(x,y,margin=0){if(dist({x,y},tower)<tower.r+margin)return true;if(dist({x,y},camp)<camp.r+margin)return true;if(x>lab.x-margin&&x<lab.x+lab.w+margin&&y>lab.y-margin&&y<lab.y+lab.h+margin)return true;return false}
+const trees=[],rocks=[],ores=[],dinos=[];
+for(let i=0;i<280;i++){let x,y;for(let n=0;n<50;n++){x=rnd()*world.w;y=rnd()*world.h;if(!inBuildingClear(x,y,85)&&dist({x,y},p)>170)break}if(!inBuildingClear(x,y,85))trees.push({x,y,s:.7+rnd()*1.4,phase:rnd()*6});}
+for(let i=0;i<170;i++){let x=rnd()*world.w,y=rnd()*world.h;if(inBuildingClear(x,y,35))continue;rocks.push({x,y,s:.5+rnd()*1.5});}
+for(let i=0;i<40;i++){let x=180+rnd()*2240,y=180+rnd()*2240;if(inBuildingClear(x,y,30))continue;ores.push({x,y,taken:false});}
+
+const spawnZones=[{x:400,y:420,r:300},{x:2100,y:450,r:320},{x:520,y:2050,r:340},{x:2100,y:2050,r:330},{x:1300,y:550,r:300},{x:1350,y:2150,r:300}];
+function spawnPoint(){for(let n=0;n<50;n++){const z=spawnZones[Math.floor(rnd()*spawnZones.length)],a=rnd()*6.28,r=Math.sqrt(rnd())*z.r,x=z.x+Math.cos(a)*r,y=z.y+Math.sin(a)*r;if(dist(p,{x,y})<620||inBuildingClear(x,y,40))continue;return{x,y}}return{x:1800,y:400}}
+function dino(kind,x,y){const s=kind==='rex'?1.8:kind==='raptor'?.9:1.2;return{x,y,r:16*s,kind,hp:kind==='rex'?650:kind==='raptor'?130:190,max:kind==='rex'?650:kind==='raptor'?130:190,dmg:kind==='rex'?28:kind==='raptor'?12:0,speed:kind==='rex'?80:kind==='raptor'?145:55,xp:kind==='rex'?220:55,phase:rnd()*6,state:'idle',cool:0,respawnAt:0,lastSeenX:x,lastSeenY:y,search:0,homeX:x,homeY:y,alert:0,angle:rnd()*6.28,anim:rnd()*6}}
+const initialKinds=['raptor','raptor','raptor','herb','herb','herb','herb','rex','herb','raptor','herb','herb','raptor','herb','rex'];
+for(const kind of initialKinds){const q=spawnPoint();dinos.push(dino(kind,q.x,q.y))}
+function killDino(d){d.hp=0;d.state='dead';const min=d.kind==='rex'?135:d.kind==='raptor'?45:28,max=d.kind==='rex'?180:d.kind==='raptor'?80:63;d.respawnAt=time+min+rnd()*(max-min)}
+function respawnDinos(){for(const d of dinos){if(d.hp<=0&&d.respawnAt&&time>=d.respawnAt){const q=spawnPoint();d.x=q.x;d.y=q.y;d.hp=d.max;d.state='idle';d.cool=0;d.lastSeenX=q.x;d.lastSeenY=q.y;d.search=0;d.alert=0;d.respawnAt=0;d.homeX=q.x;d.homeY=q.y;}}}
+
+let questStage=0,questOpened=false,questNew=true;
+const questText=['◇ Добраться до радиовышки','◇ Собрать 5 деталей','◇ Найти лагерь «Гелиос»','◇ Тайна R-7: найти лабораторию','◇ Вернуться к радиостанции'];
+function discover(building){if(building.found)return;building.found=true;questNew=true;if(building===tower)toast('Радиовышка найдена');if(building===camp)toast('Лагерь «Гелиос» найден');if(building===lab)toast('Лаборатория R-7 найдена')}
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.tm);toast.tm=setTimeout(()=>e.style.opacity=0,1300)}
+function nearest(){let b=null,bd=95;for(const d of dinos)if(d.hp>0){const q=dist(p,d);if(q<bd){bd=q;b=d}}return b}
+function attack(){if(!started||p.atk>0)return;p.atk=.42;const d=nearest();if(!d){toast('Нет цели');return}d.hp=Math.max(0,d.hp-p.dmg);flash=.08;if(d.hp<=0){p.xp+=d.xp;killDino(d);toast('Добыча +'+d.xp+' XP')}else{d.state='chase';d.lastSeenX=p.x;d.lastSeenY=p.y;d.search=3.5;toast('-'+p.dmg+' HP')}}
+function dash(){if(!started||p.dash>0||p.en<25)return;p.en-=25;p.dash=.8;let x=input.x,y=input.y;if(!x&&!y){x=0;y=-1}const l=Math.hypot(x,y)||1;movePlayer(x/l*150,y/l*150)}
+function movePlayer(dx,dy){let nx=clamp(p.x+dx,25,world.w-25),ny=clamp(p.y+dy,25,world.h-25);for(const r of rocks){const q=dist({x:nx,y:ny},r),rr=p.r+16;if(q<rr){const a=Math.atan2(ny-r.y,nx-r.x);nx=r.x+Math.cos(a)*rr;ny=r.y+Math.sin(a)*rr}}for(const t of trees){const rr=p.r+15*t.s,q=dist({x:nx,y:ny},t);if(q<rr){const a=Math.atan2(ny-t.y,nx-t.x);nx=t.x+Math.cos(a)*rr;ny=t.y+Math.sin(a)*rr}}
+/* Buildings: tower/camp are landmarks, not invisible collision circles. Only the lab has solid walls.
+   The south doorway is a real opening, so the player can walk in and out. */
+{
+ const wasInside=p.x>lab.x&&p.x<lab.x+lab.w&&p.y>lab.y&&p.y<lab.y+lab.h;
+ const nowInside=nx>lab.x&&nx<lab.x+lab.w&&ny>lab.y&&ny<lab.y+lab.h;
+ const doorX=lab.x+lab.w/2, doorHalf=58;
+ const enteringThroughDoor=Math.abs(nx-doorX)<doorHalf && ny>lab.y+lab.h-44;
+ const leavingThroughDoor=Math.abs(p.x-doorX)<doorHalf && p.y>lab.y+lab.h-58 && ny>lab.y+lab.h-24;
+ if(!wasInside&&nowInside&&!enteringThroughDoor){nx=p.x;ny=p.y}
+ else if(wasInside&&!nowInside&&!leavingThroughDoor){nx=p.x;ny=p.y}
+}
+p.x=nx;p.y=ny}
+function heal(){if(!started||p.med>0||p.hp>=p.maxHp)return;p.med=2;p.hp=Math.min(p.maxHp,p.hp+35);toast('+35 HP')}
+
+function keepDinoOutOfBuildings(d){
+  // Radio tower is open terrain; animals may walk around it.
+  // Camp has a soft footprint so dinos don't visibly clip through the tent.
+  const cx=camp.x,cy=camp.y,hw=78,hh=52;
+  if(d.x>cx-hw&&d.x<cx+hw&&d.y>cy-hh&&d.y<cy+hh){
+    const left=Math.abs(d.x-(cx-hw)),right=Math.abs(d.x-(cx+hw)),top=Math.abs(d.y-(cy-hh)),bottom=Math.abs(d.y-(cy+hh));
+    const m=Math.min(left,right,top,bottom);
+    if(m===left)d.x=cx-hw-d.r; else if(m===right)d.x=cx+hw+d.r; else if(m===top)d.y=cy-hh-d.r; else d.y=cy+hh+d.r;
+  }
+  // Lab is a solid building with one south doorway.
+  const inside=d.x>lab.x-d.r&&d.x<lab.x+lab.w+d.r&&d.y>lab.y-d.r&&d.y<lab.y+lab.h+d.r;
+  const doorX=lab.x+lab.w/2;
+  const inDoor=Math.abs(d.x-doorX)<65&&d.y>lab.y+lab.h-55;
+  if(inside&&!inDoor){
+    const dl=Math.abs(d.x-lab.x),dr=Math.abs(d.x-(lab.x+lab.w)),dt=Math.abs(d.y-lab.y),db=Math.abs(d.y-(lab.y+lab.h));
+    const m=Math.min(dl,dr,dt,db);
+    if(m===dl)d.x=lab.x-d.r; else if(m===dr)d.x=lab.x+lab.w+d.r; else if(m===dt)d.y=lab.y-d.r; else d.y=lab.y+lab.h+d.r;
+  }
+}
+
+function update(dt){
+ if(!started)return;
+ let x=input.x,y=input.y;if(keys.KeyA||keys.ArrowLeft)x-=1;if(keys.KeyD||keys.ArrowRight)x+=1;if(keys.KeyW||keys.ArrowUp)y-=1;if(keys.KeyS||keys.ArrowDown)y+=1;let l=Math.hypot(x,y);if(l>1){x/=l;y/=l}if(l>.05)movePlayer(x*p.speed*dt,y*p.speed*dt);
+ p.en=Math.min(p.maxEn,p.en+18*dt);p.atk=Math.max(0,p.atk-dt);p.dash=Math.max(0,p.dash-dt);p.med=Math.max(0,p.med-dt);
+ for(const o of ores)if(!o.taken&&dist(p,o)<28){o.taken=true;p.ore++;p.xp+=8;toast('Деталь +1')}
+ /* Discover buildings only by actually reaching them. Once discovered, map marker remains. */
+ if(dist(p,tower)<100){discover(tower);if(questStage===0){questStage=1;toast('Вышка найдена. Найдите 5 деталей')}}
+ if(p.ore>=5&&questStage===1){questStage=2;questNew=true;toast('Детали собраны. Найдите лагерь «Гелиос»')}
+ if(dist(p,camp)<120){discover(camp);if(questStage===2){questStage=3;toast('Лагерь найден. Следуйте к лаборатории R-7')}}
+ const insideLab=p.x>lab.x&&p.x<lab.x+lab.w&&p.y>lab.y&&p.y<lab.y+lab.h;if(insideLab){discover(lab);if(questStage===3){questStage=4;toast('Лаборатория найдена. Вернитесь к радиостанции')}}
+ if(dist(p,tower)<100&&questStage===4){questStage=5;questNew=true;toast('СИГНАЛ ПЕРЕДАН. Продолжение следует')}
+ respawnDinos();
+ for(const d of dinos){if(d.hp<=0)continue;d.cool=Math.max(0,d.cool-dt);d.anim+=dt;const q=dist(p,d);
+  if(d.kind==='herb'){
+   const fleeRadius=175,panicRadius=105;
+   if(q<panicRadius||d.state==='flee'){d.state='flee';const dx=d.x-p.x,dy=d.y-p.y,ll=Math.hypot(dx,dy)||1;const mult=q<panicRadius?1.55:1.12;d.x+=dx/ll*d.speed*mult*dt;d.y+=dy/ll*d.speed*mult*dt;d.angle=Math.atan2(d.y-p.y,d.x-p.x);if(q>fleeRadius)d.state='idle'}
+   else{d.phase+=dt;d.x+=Math.sin(d.phase*.6)*d.speed*.18*dt;d.y+=Math.cos(d.phase*.5)*d.speed*.18*dt}
+  }else{
+   const detect=d.kind==='rex'?520:360,giveUp=d.kind==='rex'?650:470;
+   if(q<detect){d.state='chase';d.lastSeenX=p.x;d.lastSeenY=p.y;d.search=3.5}
+   else if(d.state==='chase'&&q>giveUp){d.state='search';d.search=3.5}
+   if(d.state==='chase'){const dx=p.x-d.x,dy=p.y-d.y,ll=Math.hypot(dx,dy)||1;d.x+=dx/ll*d.speed*dt;d.y+=dy/ll*d.speed*dt;d.angle=Math.atan2(dy,dx);if(q<28&&d.cool<=0){p.hp-=d.dmg;d.cool=1.1;toast('-'+d.dmg+' HP')}}
+   else if(d.state==='search'){d.search-=dt;const dx=d.lastSeenX-d.x,dy=d.lastSeenY-d.y,ll=Math.hypot(dx,dy);if(ll>8){d.x+=dx/ll*d.speed*.65*dt;d.y+=dy/ll*d.speed*.65*dt;d.angle=Math.atan2(dy,dx)}if(d.search<=0){d.state='idle';d.lastSeenX=d.x;d.lastSeenY=d.y}}
+   else{d.phase+=dt;d.x+=Math.sin(d.phase*.5)*d.speed*.08*dt;d.y+=Math.cos(d.phase*.4)*d.speed*.08*dt}
+  }
+  d.x=clamp(d.x,30,world.w-30);d.y=clamp(d.y,30,world.h-30);keepDinoOutOfBuildings(d);
+ }
+ if(p.hp<=0){p.hp=p.maxHp;p.x=1300;p.y=1300;toast('Ты потерял сознание')}
+ if(p.xp>=p.lvl*100&&!document.getElementById('level').classList.contains('hidden')){}else if(p.xp>=p.lvl*100){document.getElementById('nl').textContent=p.lvl+1;document.getElementById('level').classList.remove('hidden');started=false}
+}
+
+function visible(x,y,camX,camY,scale,pad=80){return !(x<camX-pad||x>camX+W/scale+pad||y<camY-pad||y>camY+H/scale+pad)}
+function drawGround(camX,camY,scale){ctx.fillStyle='#315b36';ctx.fillRect(0,0,world.w,world.h);for(let i=Math.floor(camX/44)*44;i<camX+W/scale+44;i+=44)for(let j=Math.floor(camY/44)*44;j<camY+H/scale+44;j+=44){const n=Math.sin(i*.071+j*.113),m=Math.sin(i*.19-j*.13);ctx.fillStyle=n>.25?'#3f6f40':'#355f39';ctx.fillRect(i,j,42,42);if(m>.45){ctx.strokeStyle='#2a5331';ctx.lineWidth=1.5;for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(i+8+k*8,j+34);ctx.lineTo(i+5+k*8,j+27);ctx.moveTo(i+10+k*8,j+34);ctx.lineTo(i+13+k*8,j+25);ctx.stroke();}}}
+ /* water and shoreline */ctx.fillStyle='#287177';ctx.fillRect(1160,0,92,world.h);ctx.fillRect(0,1160,world.w,80);ctx.fillStyle='#7e7655';ctx.fillRect(1152,0,8,world.h);ctx.fillRect(0,1152,world.w,8);
+}
+function drawCamp(){const x=camp.x,y=camp.y;ctx.fillStyle='#243129';ctx.fillRect(x-62,y-38,124,76);ctx.fillStyle='#4c5b4f';ctx.fillRect(x-52,y-28,104,56);ctx.fillStyle='#171e1a';ctx.fillRect(x-18,y+10,36,18);ctx.fillStyle='#b96d3e';ctx.beginPath();ctx.moveTo(x-24,y+30);ctx.lineTo(x,y-4);ctx.lineTo(x+24,y+30);ctx.closePath();ctx.fill();ctx.fillStyle='#f0a348';ctx.beginPath();ctx.arc(x,y+8,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d7ded9';ctx.font='bold 12px sans-serif';ctx.fillText('ГЕЛИОС',x-30,y-48)}
+function drawTower(){const x=tower.x,y=tower.y;ctx.strokeStyle='#5c655f';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(x,y+55);ctx.lineTo(x-34,y-55);ctx.moveTo(x,y+55);ctx.lineTo(x+34,y-55);ctx.moveTo(x,y+55);ctx.lineTo(x,y-55);ctx.stroke();ctx.strokeStyle='#7f8b82';ctx.lineWidth=3;for(let k=-35;k<50;k+=22){ctx.beginPath();ctx.moveTo(x-30+k*.15,y+k);ctx.lineTo(x+30-k*.15,y+k);ctx.stroke()}ctx.fillStyle='#d84c45';ctx.beginPath();ctx.arc(x,y-67,9,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e4ebe7';ctx.font='bold 11px sans-serif';ctx.fillText('РАДИО',x-26,y+75)}
+function drawLab(){const x=lab.x,y=lab.y,w=lab.w,h=lab.h;ctx.fillStyle='#515c55';ctx.fillRect(x,y,w,h);ctx.fillStyle='#303a34';ctx.fillRect(x+12,y+12,w-24,h-24);ctx.fillStyle='#69766e';ctx.fillRect(x+30,y+30,60,55);ctx.fillRect(x+w-90,y+30,60,55);ctx.fillStyle='#161d19';ctx.fillRect(x+w/2-34,y+h-54,68,54);ctx.fillStyle='#aebbb3';ctx.fillRect(x+28,y+112,w-56,8);ctx.fillStyle='#b83d32';ctx.fillRect(x+w/2-22,y+78,44,12);ctx.fillStyle='#e6ece8';ctx.font='bold 17px sans-serif';ctx.fillText('HELIOS',x+w/2-31,y+25);ctx.font='bold 11px sans-serif';ctx.fillText('LAB R-7',x+w/2-27,y+108);ctx.strokeStyle='#1d2621';ctx.lineWidth=8;ctx.strokeRect(x-5,y-5,w+10,h+10);ctx.fillStyle='#dbe3de';ctx.font='bold 13px sans-serif';ctx.fillText('ЛАБОРАТОРИЯ R-7',x+74,y+h+28);/* warning lights */for(let k=0;k<3;k++){ctx.fillStyle=k===1?'#e1bb43':'#7f3e38';ctx.beginPath();ctx.arc(x+22+k*18,y+18,4,0,Math.PI*2);ctx.fill()}}
+function drawDino(d){
+ ctx.save();ctx.translate(d.x,d.y);const moving=d.state!=='idle',bob=moving?Math.sin(d.anim*10)*2.4:Math.sin(d.anim*2.2)*1.2;ctx.rotate(d.angle||0);
+ const rex=d.kind==='rex',rap=d.kind==='raptor';const col=rex?'#586544':rap?'#8f4936':'#6f844f';const dark=rex?'#3d4930':rap?'#673428':'#53663a';const light=rex?'#7c8b5b':rap?'#b26043':'#91a968';
+ // ground shadow
+ ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(-2,18,d.r*1.75,d.r*.58,0,0,Math.PI*2);ctx.fill();
+ // tail, body, neck, head
+ ctx.strokeStyle=dark;ctx.lineWidth=rex?d.r*.48:d.r*.30;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-d.r*.65,bob+2);ctx.lineTo(-d.r*2.15,bob+7);ctx.lineTo(-d.r*2.55,bob+2);ctx.stroke();
+ ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(0,bob,d.r*(rex?1.65:1.45),d.r*(rex?.78:.68),0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=dark;ctx.beginPath();ctx.ellipse(d.r*.55,bob-d.r*.35,d.r*.52,d.r*.68,-.15,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(d.r*1.02,bob-d.r*.55,d.r*(rex?.62:.5),d.r*.42,0,0,Math.PI*2);ctx.fill();
+ // jaw / snout
+ ctx.fillStyle=dark;ctx.beginPath();ctx.ellipse(d.r*1.35,bob-d.r*.43,d.r*(rex?.55:.42),d.r*.20,0,0,Math.PI*2);ctx.fill();
+ // eye + highlight
+ ctx.fillStyle='#171b14';ctx.beginPath();ctx.arc(d.r*1.28,bob-d.r*.69,Math.max(2,d.r*.10),0,Math.PI*2);ctx.fill();ctx.fillStyle='#f5e8a2';ctx.beginPath();ctx.arc(d.r*1.30,bob-d.r*.70,Math.max(0.8,d.r*.035),0,Math.PI*2);ctx.fill();
+ // back ridges / scales
+ ctx.fillStyle=light;for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(i*d.r*.42-2,bob-d.r*.55);ctx.lineTo(i*d.r*.42+5,bob-d.r*1.02);ctx.lineTo(i*d.r*.42+10,bob-d.r*.52);ctx.closePath();ctx.fill();}
+ // legs with alternating gait
+ const step=moving?Math.sin(d.anim*11)*d.r*.22:0;ctx.strokeStyle=dark;ctx.lineWidth=d.r*.22;ctx.lineCap='round';
+ for(const sx of [-.55,.55]){ctx.beginPath();ctx.moveTo(sx*d.r,bob+d.r*.38);ctx.lineTo(sx*d.r+step,bob+d.r*1.02);ctx.stroke();ctx.beginPath();ctx.moveTo(sx*d.r,bob+d.r*.28);ctx.lineTo(sx*d.r-step,bob+d.r*.88);ctx.stroke();}
+ if(rap){ctx.strokeStyle='#d7c0a8';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(d.r*.48,d.r*.48);ctx.lineTo(d.r*.78,d.r*.82);ctx.moveTo(d.r*.78,d.r*.42);ctx.lineTo(d.r*1.05,d.r*.75);ctx.stroke();}
+ if(rex){ctx.fillStyle='#d6b35c';ctx.beginPath();ctx.moveTo(d.r*1.2,bob-d.r*.20);ctx.lineTo(d.r*1.72,bob-d.r*.10);ctx.lineTo(d.r*1.2,bob+d.r*.04);ctx.closePath();ctx.fill();ctx.fillStyle='#26301f';ctx.beginPath();ctx.arc(-d.r*.2,bob-d.r*.7,d.r*.12,0,Math.PI*2);ctx.arc(d.r*.15,bob-d.r*.8,d.r*.1,0,Math.PI*2);ctx.fill();}
+ // health bar only when hurt / chasing
+ if(d.hp<d.max||d.state==='chase'){ctx.fillStyle='#1118';ctx.fillRect(-d.r*1.25,-d.r*1.45,d.r*2.5,4);ctx.fillStyle='#e35a4c';ctx.fillRect(-d.r*1.25,-d.r*1.45,d.r*2.5*(d.hp/d.max),4);}
+ ctx.restore();
+}
+function draw(){ctx.clearRect(0,0,W,H);const scale=Math.min(W,H)/900,camX=p.x-W/(2*scale),camY=p.y-H/(2*scale);ctx.save();ctx.scale(scale,scale);ctx.translate(-camX,-camY);drawGround(camX,camY,scale);
+ /* building clear zones are visually open; buildings render before vegetation */drawTower();drawCamp();drawLab();
+ for(const o of ores)if(!o.taken&&visible(o.x,o.y,camX,camY,scale,40)){ctx.fillStyle='#9b9990';ctx.beginPath();ctx.moveTo(o.x,o.y-9);ctx.lineTo(o.x+10,o.y);ctx.lineTo(o.x,o.y+9);ctx.lineTo(o.x-10,o.y);ctx.closePath();ctx.fill();ctx.fillStyle='#d6d0b2';ctx.fillRect(o.x-3,o.y-2,6,4)}
+ for(const r of rocks)if(visible(r.x,r.y,camX,camY,scale)){ctx.fillStyle='#0003';ctx.beginPath();ctx.ellipse(r.x,r.y+8,18*r.s,9*r.s,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#555c52';ctx.beginPath();ctx.ellipse(r.x,r.y,18*r.s,12*r.s,0,0,Math.PI*2);ctx.fill()}
+ for(const t of trees)if(visible(t.x,t.y,camX,camY,scale)){ctx.fillStyle='#0003';ctx.beginPath();ctx.ellipse(t.x,t.y+8,16*t.s,7*t.s,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#58442e';ctx.fillRect(t.x-5*t.s,t.y-30*t.s,10*t.s,38*t.s);ctx.fillStyle='#2b6a3d';ctx.beginPath();ctx.arc(t.x,t.y-34*t.s,24*t.s,0,Math.PI*2);ctx.arc(t.x-18*t.s,t.y-22*t.s,18*t.s,0,Math.PI*2);ctx.arc(t.x+18*t.s,t.y-20*t.s,18*t.s,0,Math.PI*2);ctx.fill();ctx.fillStyle='#3e8048';ctx.beginPath();ctx.arc(t.x-7*t.s,t.y-43*t.s,8*t.s,0,Math.PI*2);ctx.fill()}
+ for(const d of dinos)if(d.hp>0&&visible(d.x,d.y,camX,camY,scale,80))drawDino(d);
+ ctx.fillStyle='#0003';ctx.beginPath();ctx.ellipse(p.x,p.y+12,18,8,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d6a06a';ctx.fillRect(p.x-10,p.y-16,20,28);ctx.fillStyle='#d9b07a';ctx.beginPath();ctx.arc(p.x,p.y-24,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#27312c';ctx.fillRect(p.x+7,p.y-12,20,5);ctx.restore();if(flash>0){ctx.fillStyle='#fff3';ctx.fillRect(0,0,W,H);flash-=.016}drawMini();updateUI()}
+
+function mapMarker(x,y,label,icon){const X=x/world.w*250,Y=y/world.h*250;mx.fillStyle='#f0eee8';mx.beginPath();mx.arc(X,Y,8,0,Math.PI*2);mx.fill();mx.fillStyle='#183126';mx.font='bold 10px sans-serif';mx.textAlign='center';mx.textBaseline='middle';mx.fillText(icon,X,Y);mx.textAlign='start';mx.textBaseline='alphabetic'}
+function drawMini(){mx.clearRect(0,0,250,250);mx.fillStyle='#285d39';mx.fillRect(0,0,250,250);mx.fillStyle='#277075';mx.fillRect(111,0,9,250);mx.fillRect(0,111,250,8);mx.fillStyle='#416b42';mx.fillRect(0,0,250,250);mx.fillStyle='#277075';mx.fillRect(111,0,9,250);mx.fillRect(0,111,250,8);for(const d of dinos)if(d.hp>0){mx.fillStyle=d.kind==='rex'?'#f04f43':d.kind==='raptor'?'#e39a44':'#9bb25d';mx.fillRect(d.x/world.w*250-2,d.y/world.h*250-2,4,4)}if(tower.found)mapMarker(tower.x,tower.y,'Вышка','▲');if(camp.found)mapMarker(camp.x,camp.y,'Лагерь','⌂');if(lab.found)mapMarker(lab.x+lab.w/2,lab.y+lab.h/2,'Лаборатория','+');mx.fillStyle='#fff';mx.beginPath();mx.arc(p.x/world.w*250,p.y/world.h*250,4,0,Math.PI*2);mx.fill()}
+function updateUI(){document.getElementById('hpT').textContent=Math.max(0,Math.round(p.hp))+'/'+p.maxHp;document.getElementById('hp').style.width=p.hp/p.maxHp*100+'%';const prev=(p.lvl-1)*100,span=100,pr=p.xp-prev;document.getElementById('xpT').textContent=Math.max(0,pr)+'/'+span;document.getElementById('xp').style.width=clamp(pr/span*100,0,100)+'%';document.getElementById('enT').textContent=Math.round(p.en)+'/'+p.maxEn;document.getElementById('en').style.width=p.en/p.maxEn*100+'%';document.getElementById('lvl').textContent=p.lvl;document.getElementById('oreT').textContent=p.ore;document.getElementById('quest').innerHTML=questText.map((x,i)=>'<div class="q '+(i<questStage?'questDone':i===questStage?'active':'')+'">'+(i<questStage?'✓ ':x[0]+' ')+x.slice(2)+'</div>').join('');document.getElementById('questBadge').classList.toggle('hidden',!questNew)}
+
+document.querySelectorAll('.up').forEach(b=>b.addEventListener('pointerup',()=>{const u=b.dataset.u;if(u==='damage')p.dmg=Math.round(p.dmg*1.15);if(u==='hp'){p.maxHp+=40;p.hp=p.maxHp}if(u==='speed')p.speed*=1.12;if(u==='energy'){p.maxEn+=25;p.en=p.maxEn}p.lvl++;document.getElementById('level').classList.add('hidden');started=true;toast('Улучшение получено')}));
+document.getElementById('questBtn').addEventListener('pointerup',e=>{e.preventDefault();questOpened=true;questNew=false;document.getElementById('questModal').classList.remove('hidden');updateUI()});
+document.getElementById('questClose').addEventListener('pointerup',e=>{e.preventDefault();questOpened=false;document.getElementById('questModal').classList.add('hidden')});
+function startGame(e){e.preventDefault();started=true;document.getElementById('intro').classList.add('hidden');toast('Добро пожаловать на остров');last=performance.now();requestAnimationFrame(loop)}
+['pointerup','touchend','click'].forEach(ev=>document.getElementById('start').addEventListener(ev,startGame,{passive:false}));
+function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;time+=dt;update(dt);draw();requestAnimationFrame(loop)}
+draw();
+})();
+</script>
+</body>
+</html>
