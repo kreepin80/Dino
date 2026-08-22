@@ -1,0 +1,29 @@
+# DINO Wild Island v13 original low-poly mesh materials
+newmtl body
+Kd 0.427 0.498 0.322
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl dark
+Kd 0.243 0.294 0.196
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl light
+Kd 0.604 0.671 0.420
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl belly
+Kd 0.694 0.627 0.431
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl plate
+Kd 0.431 0.608 0.388
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl horn
+Kd 0.851 0.773 0.549
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
+newmtl eye
+Kd 0.937 0.902 0.647
+Ka 0.03 0.03 0.03
+Ks 0.0 0.0 0.0
